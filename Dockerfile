@@ -10,25 +10,26 @@ RUN apt-get update && apt-get install -y \
     git \
     libsndfile1-dev \
     ffmpeg \
-    && curl https://sh.rustup.rs -sSf | sh -s -- -y \
-    && export PATH="$HOME/.cargo/bin:$PATH"
+ && curl https://sh.rustup.rs -sSf | sh -s -- -y
 
-# Устанавливаем poetry
+ENV PATH="/root/.cargo/bin:$PATH"
+
 RUN python3 -m venv $POETRY_VENV \
-    && $POETRY_VENV/bin/pip install -U pip setuptools \
-    && $POETRY_VENV/bin/pip install poetry==2.1.1
+ && $POETRY_VENV/bin/pip install -U pip setuptools \
+ && $POETRY_VENV/bin/pip install poetry==2.1.1
+
+ENV PATH="${POETRY_VENV}/bin:$PATH"
+
+# Устанавливаем проблемные зависимости заранее
+RUN pip install torch==2.0.1+cpu torchaudio==2.0.2+cpu \
+    -f https://download.pytorch.org/whl/cpu/torch_stable.html \
+ && pip install tokenizers==0.13.3
 
 WORKDIR /app
-
 COPY . /app
 
-# Опционально — ставим torch вручную, если нужна CPU-версия
-RUN pip install torch==2.0.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
-
 RUN poetry config virtualenvs.in-project true
-
-# Запуск установки с логами
-RUN poetry install --no-interaction --no-ansi --only main --no-root -vvv
+RUN poetry install --no-interaction --only main --no-root -vvv
 
 # Swagger и ffmpeg
 COPY --from=onerahmet/ffmpeg:n7.1 /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
